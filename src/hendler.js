@@ -1,10 +1,38 @@
 const {nanoid} = require('nanoid');
 const books = require('./books');
 
-const addBookHandler = (request, h) => { //Kriteria 1 : API dapat menyimpan buku
-  const checkName = request.payload.hasOwnProperty('name');
+const addBookHandler = (request, h) => {
+  const id = nanoid(16); // membuat karakter string acak sepanjang 16 karakter
+  const insertedAt = new Date().toISOString();
+  const updatedAt = insertedAt; // nilai sama dengan insertedAt karena untuk nyimpen buku baru
 
-  if (!checkName) { // Client tidak melampirkan properti name pada request body.
+  const {
+    name,
+    year,
+    author,
+    summary,
+    publisher,
+    pageCount,
+    readPage,
+    reading,
+  } = request.payload; // membaca request body
+
+  const newBook = {
+    id,
+    name,
+    year,
+    author,
+    summary,
+    publisher,
+    pageCount,
+    readPage,
+    reading,
+    insertedAt,
+    updatedAt,
+    finished: pageCount === readPage,
+  };
+
+  if (name === '' || name === undefined || name === null) {
     const response = h.response({
       status: 'fail',
       message: 'Gagal menambahkan buku. Mohon isi nama buku',
@@ -12,24 +40,21 @@ const addBookHandler = (request, h) => { //Kriteria 1 : API dapat menyimpan buku
     response.code(400);
     return response;
   }
-  const {name, year, author, summary, publisher, pageCount, readPage, reading} = request.payload;// membaca request body
 
-  const id = nanoid(16);// membuat karakter string acak sepanjang 16 karakter
-  const finished = pageCount === readPage ? true : false;// kondisi ? nilai jika kondisi true : nilai jika kondisi false
-  const insertedAt = new Date().toISOString();
-  const updatedAt = insertedAt;// nilai sama dengan insertedAt karena untuk nyimpen buku baru
-
-  const newBook = {// object literal, membuat key:value langsung dengan nama variabel yg sudah bernilai
-    id, name, year, author, summary, publisher, pageCount, readPage, finished, reading, insertedAt, updatedAt,
-  };
-
-  if (pageCount >= readPage) {
-    books.push(newBook);
+  if (readPage > pageCount) {
+    const response = h.response({
+      status: 'fail',
+      message:
+        'Gagal menambahkan buku. readPage tidak boleh lebih besar dari pageCount',
+    });
+    response.code(400);
+    return response;
   }
 
-  const isSuccess = books.filter((book) => book.id === id).length > 0;// method filter mengembalikan array
+  books.push(newBook);
 
-  if (isSuccess) { //Bila buku berhasil dimasukkan
+  const isSuccess = books.filter((book) => book.id === id).length > 0;
+  if (isSuccess) {
     const response = h.response({
       status: 'success',
       message: 'Buku berhasil ditambahkan',
@@ -39,17 +64,10 @@ const addBookHandler = (request, h) => { //Kriteria 1 : API dapat menyimpan buku
     });
     response.code(201);
     return response;
-  } else if (readPage > pageCount) { //nilai properti readPage yang lebih besar dari nilai properti pageCount
-    const response = h.response({
-      status: 'fail',
-      message: 'Gagal menambahkan buku. readPage tidak boleh lebih besar dari pageCount',
-    });
-    response.code(400);
-    return response;
   }
 
-  const response = h.response({ //Server gagal memasukkan buku karena alasan umum (generic error). 
-    status: 'fail',
+  const response = h.response({
+    status: 'error',
     message: 'Buku gagal ditambahkan',
   });
   response.code(500);
